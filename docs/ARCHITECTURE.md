@@ -1,78 +1,93 @@
-# WeHive Platform MVP Architecture – Detailed Documentation & Diagram
+# WeHive Platform Architecture Documentation
 
-## 0. Overview Diagram and Explanation
+This documentation provides a complete overview of the WeHive platform—a modern real estate investment platform that leverages blockchain technology to tokenize property investments while abstracting all complexities from the end user. The document covers system architecture, business logic, blockchain integration, tokenization, payout processes, KYC requirements, and more.
 
-Below is the detailed Mermaid diagram that visually represents the architecture and data flow:
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Business Objectives](#business-objectives)
+3. [High-Level Architecture](#high-level-architecture)
+4. [Mobile Application](#mobile-application)
+5. [API Gateway](#api-gateway)
+6. [Core Business Logic](#core-business-logic)
+7. [Blockchain Abstraction & Integration](#blockchain-abstraction--integration)
+    - [Blockchain Choices](#blockchain-choices)
+    - [Smart Contract Development & Integration](#smart-contract-development--integration)
+    - [Detailed Flow Diagram](#detailed-flow-diagram)
+8. [External Providers](#external-providers)
+9. [Real-Time Communication & Administration](#real-time-communication--administration)
+10. [Workflow Descriptions](#workflow-descriptions)
+    - [User Onboarding & KYC](#user-onboarding--kyc)
+    - [Token Purchase Flow](#token-purchase-flow)
+    - [Payout Flow](#payout-flow)
+11. [Implementation Considerations](#implementation-considerations)
+12. [Final Notes](#final-notes)
+
+---
+
+## Overview
+
+WeHive will be a cutting-edge real estate investment platform that simplifies property investment through tokenization. By abstracting blockchain complexities, the platform allows users to create accounts, complete KYC, and invest without needing to understand or interact directly with blockchain technologies.
+
+---
+
+## Business Objectives
+
+- **User Simplicity:** Offer a seamless onboarding process with simple account creation, KYC verification, and a familiar investing experience.
+- **Transparency & Security:** Provide immutable record-keeping through blockchain while ensuring all transactions are auditable and secure.
+- **Cost Efficiency & Scalability:** Dynamically select between Polygon (for low-cost transactions) and Solana (for high throughput) to optimize operations.
+- **Real-Time Engagement:** Deliver live updates and notifications via a dedicated WebSocket server for a responsive user experience.
+
+---
+
+## High-Level Architecture
+
+Below is an overview diagram showing how different system components interact.
 
 ```mermaid
 %% WeHive Platform MVP - Verbose Architecture Diagram
 graph TD
-    %% ================================================================
     %% Mobile Application and its Sub-Components
-    %% The Mobile App serves as the primary user interface.
-    %% It contains modules for registration, property exploration,
-    %% portfolio management, notifications, and wallet integration.
-    %% ================================================================
     subgraph Mobile_App["Mobile App"]
-        MA["Mobile App"]
+        MA["Mobile App (UI)"]
         Reg["Registration & KYC Upload"]
         Market["Marketplace Exploration"]
         Port["Portfolio Dashboard"]
         Notify["Notifications & Live Updates"]
-        Wallet["Wallet Integration (MetaMask, WalletConnect)"]
+        Wallet["Wallet Integration (Abstracted)"]
     end
 
-    %% ================================================================
     %% API Gateway Layer
-    %% This layer acts as the front door for all client requests.
-    %% It performs authentication (OAuth2/JWT), rate limiting,
-    %% logging, and includes a failover mechanism to maintain reliability.
-    %% ================================================================
     subgraph API_Gateway["API Gateway Layer"]
-        API["API Gateway"]
+        API["API Gateway (Auth, Rate Limiting, Logging)"]
         Auth["Authentication (OAuth2/JWT)"]
         Rate["Rate Limiting / Throttling"]
         Log["Monitoring & Logging"]
         Failover["Failover Mechanism"]
     end
 
-    %% ================================================================
     %% Core Business Logic
-    %% This layer encapsulates the platform’s primary services.
-    %% It includes modules for user management, marketplace logic,
-    %% portfolio management, tax exports, transaction logging,
-    %% notifications, fraud detection, and event-driven messaging.
-    %% ================================================================
     subgraph Core_Business_Logic["Core Business Logic"]
-        CB["Business Logic Core"]
-        UM["User Management"]
-        MP["Marketplace Logic"]
+        CB["Unified Business Logic"]
+        UM["User Management & KYC"]
+        MP["Marketplace & Token Purchase Manager"]
         PM["Portfolio Management"]
         Tax["Tax Export Module (PDF/CSV)"]
         TL["Transaction Logging"]
         Notif["Notification Triggers"]
         Fraud["Fraud/Anomaly Detection"]
-        ES["Event-Driven Service (Kafka/RabbitMQ)"]
+        ES["Event-Driven Messaging"]
     end
 
-    %% ================================================================
     %% Databases
-    %% Two types of databases are used:
-    %% - Postgres for structured data such as user profiles and transactions.
-    %% - MongoDB for unstructured data including property images and metadata.
-    %% ================================================================
     subgraph Databases["Databases"]
         P["Postgres (Structured Data)"]
         M["MongoDB (Unstructured Data)"]
     end
 
-    %% ================================================================
     %% Blockchain Networks & Integration
-    %% The Blockchain Integration module handles tokenization,
-    %% payouts, and P2P trading via smart contracts. It dynamically
-    %% selects the appropriate chain (Polygon for low-cost and Solana
-    %% for high throughput) using a fallback mechanism.
-    %% ================================================================
     subgraph Blockchain["Blockchain Networks"]
         BCO["Blockchain Orchestration Module"]
         Poly["Polygon (Primary - Low Cost)"]
@@ -80,70 +95,42 @@ graph TD
         SC["Smart Contracts (Tokenization, Payouts)"]
     end
 
-    %% ================================================================
     %% External Providers
-    %% External services include:
-    %% - Payment Providers (e.g., Stripe, PayPal, Klarna) for fiat transactions.
-    %% - KYC Providers (e.g., Jumio, Onfido) for identity verification.
-    %% ================================================================
     subgraph External_Providers["External Providers"]
         PP["Payment Provider (Stripe, PayPal, Klarna)"]
         KYC["KYC Provider (Jumio/Onfido)"]
     end
 
-    %% ================================================================
-    %% Real-Time Communication and Administrative Tools
-    %% The WebSocket Server provides live updates to users.
-    %% The Admin Panel allows for manual overrides, KYC reviews,
-    %% analytics, audit logs, and fraud alerts.
-    %% ================================================================
+    %% Real-Time Communication & Administration
     subgraph Real_Time_Admin["Real-Time & Admin"]
         WS["WebSocket Server (Live Updates)"]
         APan["Admin Panel (Manual Overrides, Monitoring)"]
     end
 
-    %% ================================================================
-    %% FLOW: Mobile App Component Interactions
-    %% ================================================================
-    %% The Mobile App sends all interactions (registration,
-    %% marketplace browsing, portfolio management, wallet operations,
-    %% and notifications) to the API Gateway.
+    %% Flow: Mobile App to API Gateway
     MA --> Reg
     MA --> Market
     MA --> Port
     MA --> Notify
     MA --> Wallet
 
-    %% Mobile App sends requests to the API Gateway
     Reg --> API
     Market --> API
     Port --> API
-    Wallet --> API
     Notify --> API
+    Wallet --> API
 
-    %% ================================================================
-    %% FLOW: API Gateway Internal Processing
-    %% ================================================================
-    %% The API Gateway processes each incoming request by applying
-    %% authentication, rate limiting, logging, and a failover mechanism.
+    %% API Gateway processing
     API --> Auth
     API --> Rate
     API --> Log
     API --> Failover
-
-    %% The authenticated and validated requests are then routed
-    %% to the Core Business Logic layer.
     Auth --> CB
     Rate --> CB
     Log --> CB
     Failover --> CB
 
-    %% ================================================================
-    %% FLOW: Core Business Logic Decomposition
-    %% ================================================================
-    %% The core business logic further distributes requests to
-    %% specialized modules: user management, marketplace, portfolio,
-    %% tax exports, transaction logging, notifications, and fraud detection.
+    %% Core Business Logic distribution
     CB --> UM
     CB --> MP
     CB --> PM
@@ -152,215 +139,230 @@ graph TD
     CB --> Notif
     CB --> Fraud
     CB --> ES
-
-    %% ================================================================
-    %% FLOW: Database Interactions
-    %% ================================================================
-    %% The Business Logic interacts with both structured and unstructured
-    %% databases for storing and retrieving user, property, and transaction data.
     CB --> P
     CB --> M
-
-    %% ================================================================
-    %% FLOW: Blockchain Integration for Tokenization & Payouts
-    %% ================================================================
-    %% The Business Logic sends tokenization and payout instructions to
-    %% the Blockchain Orchestration Module.
     CB -->|Tokenization & Payout Requests| BCO
 
-    %% The Orchestration Module then dynamically selects the appropriate
-    %% blockchain based on transaction type, cost, and network conditions.
+    %% Blockchain integration
     BCO --> Poly
     BCO --> Sol
-
-    %% On the selected chain, smart contracts are invoked to handle
-    %% tokenization (minting tokens) and payout operations.
     Poly --> SC
     Sol --> SC
-
-    %% Smart Contract events (e.g., ownership updates, transaction confirmations)
-    %% are then pushed to the WebSocket Server to keep users informed in real time.
     SC -->|Smart Contract Events| WS
 
-    %% ================================================================
-    %% FLOW: External Providers Integration
-    %% ================================================================
-    %% For Payment Processing:
-    %% The Business Logic forwards payment requests to the Payment Provider.
+    %% External providers integration
     CB -->|Payment Processing| PP
-    %% Payment confirmations are returned to the Business Logic.
     PP -->|Payment Confirmation| CB
-
-    %% For KYC Verification:
-    %% The Business Logic sends KYC requests and updates to the KYC Provider.
     CB -->|KYC Requests/Updates| KYC
-    %% The KYC Provider returns verification statuses to the Business Logic.
     KYC -->|KYC Verification Status| CB
-    %% Additionally, any alerts or manual override triggers from KYC are sent to the Admin Panel.
     KYC -->|Alerts/Overrides| APan
 
-    %% ================================================================
-    %% FLOW: Real-Time Notifications & Administration
-    %% ================================================================
-    %% The Business Logic sends event triggers (e.g., new transactions,
-    %% status updates) to the WebSocket Server to push real-time notifications.
+    %% Real-Time & Administration
     CB -->|Event Triggers| WS
-    %% The API Gateway also forwards error logs and alerts to the Admin Panel.
     API -->|Error Logs & Alerts| APan
-    %% For auditing and manual intervention, the Business Logic provides
-    %% audit logs and override capabilities to the Admin Panel.
     CB -->|Audit Logs & Manual Overrides| APan
 ```
 
 ---
 
+## Mobile Application
 
-## 1. Overview
+The mobile app provides the primary user interface, with the following modules:
 
-**WeHive** will be a modern real estate investment platform that leverages Web3 technology to simplify traditional real estate complexities. By tokenizing properties and enabling digital asset management through blockchain, WeHive will allow users to invest in real estate easily and securely. The platform will use a dual blockchain strategy—Polygon for low-cost transactions and Solana for high throughput—to optimize both cost and performance.
-
-**Key Business Objectives:**
-
-- **User Simplicity:**  
-  Easy onboarding with mobile registration, KYC verification, and wallet integration (MetaMask, WalletConnect).
-
-- **Transparency & Security:**  
-  Immutable blockchain record keeping with smart contract auditing and fraud detection.
-
-- **Cost Efficiency & Scalability:**  
-  Dynamic chain selection between Polygon and Solana to balance fees and transaction speed.
-
-- **Real-Time Engagement:**  
-  Live updates and notifications via a dedicated WebSocket server.
+- **Registration & KYC Upload:** Users sign up and upload identity documents.
+- **Marketplace Exploration:** Browse tokenized property listings.
+- **Portfolio Dashboard:** View and manage investments.
+- **Notifications & Live Updates:** Receive real-time alerts regarding transactions and property statuses.
+- **Wallet Integration (Abstracted):** Although wallet operations occur under the hood, users interact with a simple account-based system.
 
 ---
 
-## 2. Architectural Components
+## API Gateway
 
-### 2.1 Mobile Application
+The API Gateway serves as the front door for all client requests. It:
 
-- **Modules:**
-  - **Registration & KYC Upload:**  
-    Users will sign up and submit identity verification documents.
-  - **Marketplace Exploration:**  
-    Browse tokenized property listings with detailed information.
-  - **Portfolio Dashboard:**  
-    Track investments, view performance, and manage assets.
-  - **Notifications & Live Updates:**  
-    Receive real-time alerts on property status and transactions.
-  - **Wallet Integration:**  
-    Connect a digital wallet (MetaMask/WalletConnect) for non-custodial asset management.
-
-### 2.2 API Gateway
-
-- **Responsibilities:**
-  - **Authentication:**  
-    Secure API calls using OAuth2/JWT.
-  - **Rate Limiting / Throttling:**  
-    Ensure system stability under high load.
-  - **Monitoring & Logging:**  
-    Capture operational metrics and error logs.
-  - **Failover Mechanism:**  
-    Provide resilience and high availability.
-
-### 2.3 Core Business Logic
-
-- **Modules:**
-  - **User Management:**  
-    Handles profiles, sessions, and identity verification statuses.
-  - **Marketplace Logic:**  
-    Manages property listing, dynamic pricing, and tokenization requests.
-  - **Portfolio Management:**  
-    Tracks user assets and generates performance reports.
-  - **Tax Export Module:**  
-    Exports tax reports (PDF/CSV) based on investment activities.
-  - **Transaction Logging:**  
-    Maintains a complete audit trail of all operations.
-  - **Notification Triggers:**  
-    Dispatches real-time updates to the WebSocket server.
-  - **Fraud/Anomaly Detection:**  
-    Monitors and flags suspicious activities.
-  - **Event-Driven Service:**  
-    Uses Kafka or RabbitMQ to handle asynchronous events.
-
-### 2.4 Database Layer
-
-- **Components:**
-  - **Postgres:**  
-    Stores structured data like user profiles, transactions, and tokenization events.
-  - **MongoDB:**  
-    Manages unstructured data such as property images, descriptions, and metadata.
-- **Features:**  
-  Backup, replication, and optimized read/write operations for high-volume data.
-
-### 2.5 Blockchain Integration
-
-- **Core Functions:**
-  - **Tokenization Requests:**  
-    Mint tokens representing property or fractions thereof via smart contracts.
-  - **Payout Execution:**  
-    Process investor payouts based on smart contract triggers.
-  - **P2P Trading:**  
-    Enable direct token transfers between users.
-- **Dynamic Chain Selection:**
-  - **Polygon:**  
-    Primary chain for low-cost transactions.
-  - **Solana:**  
-    Secondary chain for high throughput when needed.
-  - **Fallback Mechanism:**  
-    Dynamically switches chains based on network congestion, fees, or operational issues.
-- **Abstraction:**  
-  A blockchain orchestration module provides a uniform API to the Core Business Logic, abstracting the complexities of underlying chains.
-
-### 2.6 External Providers
-
-- **Payment Provider:**  
-  Integrated with services like Stripe, PayPal, or Klarna for fiat payment processing (PCI DSS compliant).
-- **KYC Provider:**  
-  Uses Jumio, Onfido, or similar services for identity verification and document processing.
-
-### 2.7 Real-Time Communication and Administration
-
-- **WebSocket Server:**  
-  Distributes live updates and notifications from the blockchain and business logic to the mobile app.
-- **Admin Panel:**  
-  Provides manual override capabilities, KYC review, analytics, audit logs, and fraud management.
+- Authenticates requests using OAuth2/JWT.
+- Applies rate limiting and throttling to ensure stability.
+- Logs and monitors incoming requests.
+- Implements failover mechanisms for high availability.
 
 ---
 
-## 3. Detailed Workflow
+## Core Business Logic
 
-### 3.1 User Onboarding & KYC Verification
+This layer coordinates and orchestrates all operations on the platform:
 
-1. **Registration & KYC Upload:**  
-   Users register on the mobile app and upload required documents.
-2. **API Gateway Processing:**  
-   The registration request is authenticated and forwarded to the Core Business Logic.
-3. **KYC Verification:**  
-   The Core Business Logic interacts with the KYC Provider; results are stored and, if needed, escalated to the Admin Panel.
-4. **Wallet Connection:**  
-   Once verified, users connect their digital wallet to complete onboarding.
-
-### 3.2 Property Tokenization & Investment
-
-1. **Marketplace Exploration:**  
-   Users browse tokenized property listings.
-2. **Tokenization Request:**  
-   On selecting an investment, a tokenization request is issued by the Core Business Logic.
-3. **Blockchain Integration:**  
-   The Blockchain Orchestration Module determines whether to use Polygon (primary) or Solana (secondary) based on cost and throughput.
-4. **Smart Contract Execution:**  
-   Smart contracts mint tokens and process payouts; events are relayed to the WebSocket Server.
-5. **Portfolio Update:**  
-   User dashboards are updated in real time.
-
-### 3.3 Payouts and P2P Trading
-
-1. **Initiation:**  
-   Core Business Logic issues payout instructions post-investment events.
-2. **Chain Selection & Execution:**  
-   Blockchain Integration handles the payout process via the appropriate chain.
-3. **Real-Time Confirmation:**  
-   Transaction confirmations are delivered through the WebSocket Server and logged for auditing.
+- **User Management & KYC:** Handles profile management and identity verification.
+- **Marketplace & Token Purchase Manager:** Processes token purchase requests.
+- **Portfolio Management:** Maintains and displays user investments.
+- **Tax Export Module:** Generates tax reports in PDF/CSV format.
+- **Transaction Logging & Audit Trails:** Logs all transactions and operations for compliance.
+- **Notification Triggers & Fraud Detection:** Manages real-time updates and monitors for suspicious activities.
+- **Event-Driven Messaging:** Utilizes Kafka or RabbitMQ for asynchronous processing.
 
 ---
+
+## Blockchain Abstraction & Integration
+
+The WeHive platform uses an abstraction layer to hide blockchain details. This layer provides a unified API for token minting, transfers, and payout processing.
+
+### Blockchain Choices
+
+- **Polygon (Primary):**
+  - **Low Transaction Fees:** Ideal for microtransactions and frequent token minting.
+  - **Ethereum Compatibility:** Supports ERC-20 and ERC-721 standards.
+  - **Robust Ecosystem:** Mature tooling and developer support.
+- **Solana (Secondary):**
+  - **High Throughput:** Capable of handling thousands of transactions per second.
+  - **Low Latency:** Fast confirmation times for real-time applications.
+  - **Cost Efficiency:** Suitable for bulk operations and high-speed processing.
+
+### Smart Contract Development & Integration
+
+- **On Polygon:** Use EVM-based smart contracts (ERC-20 for fractional ownership or ERC-721 for unique tokens).
+- **On Solana:** Develop programs in Rust (using frameworks like Anchor) to provide similar functionalities.
+
+### Detailed Flow Diagram
+
+The following diagram illustrates the blockchain integration flow:
+
+```mermaid
+%% Blockchain Integration with Polygon and Solana
+graph TD
+    %% User and Frontend Components
+    subgraph Mobile_App["Mobile App"]
+        A1["User Account & Dashboard"]
+        A2["Token Purchase Interface"]
+        A3["Payout Request Interface"]
+    end
+
+    %% API Gateway Layer
+    subgraph API_Gateway["API Gateway"]
+        B1["API Gateway (Auth, Rate Limiting, Logging)"]
+    end
+
+    %% Core Business Logic
+    subgraph Core_Business_Logic["Core Business Logic"]
+        C1["Unified Business Logic"]
+        C2["User Management & KYC"]
+        C3["Marketplace & Token Purchase Manager"]
+        C4["Payout Manager"]
+        C5["Audit & Transaction Logging"]
+    end
+
+    %% Blockchain Abstraction Layer
+    subgraph Blockchain_Abstract["Blockchain Abstraction Layer"]
+        D1["Blockchain Orchestration Module"]
+        D2["Smart Contract Wrapper"]
+        D3["Tokenization Service"]
+    end
+
+    %% Blockchain Networks
+    subgraph Blockchains["Blockchain Networks"]
+        P["Polygon (Primary)"]
+        S["Solana (Secondary)"]
+    end
+
+    %% Payment & Payout Processing
+    subgraph Payment_Payout["External Payment Provider"]
+        E1["PayPal (Payout Processing)"]
+    end
+
+    %% Databases for Blockchain Data
+    subgraph Databases["Databases & Collections"]
+        F1["Postgres (User, Transaction Data)"]
+        F2["MongoDB (Property Metadata, Token Collection Info)"]
+    end
+
+    %% Flow: Token Purchase
+    A1 --> A2
+    A2 --> B1
+    B1 --> C1
+    C1 --> C3
+    C3 --> D1
+    D1 --> D2
+    D2 --> D3
+    D3 -->|Mint Token| F2
+    D3 -->|Event Notification| C3
+    C3 -->|Update Portfolio| A1
+
+    %% Flow: Payout Processing via PayPal
+    A1 --> A3
+    A3 --> B1
+    B1 --> C1
+    C1 --> C4
+    C4 --> E1
+    E1 -->|Payout Confirmation| C4
+    C4 -->|Audit Log| F1
+    C4 -->|Notification| A1
+
+    %% Dynamic Chain Selection
+    D1 -->|Select Based on Fees/Throughput| P
+    D1 -->|Select Based on Fees/Throughput| S
+```
+
+---
+
+## External Providers
+
+- **Payment Providers:** Integrate with Stripe, PayPal, or Klarna for fiat transactions and payouts.
+- **KYC Providers:** Use Jumio, Onfido, or similar services for identity verification.
+- **Other Services:** Integrate with audit and logging services for enhanced monitoring.
+
+---
+
+## Real-Time Communication & Administration
+
+- **WebSocket Server:** Pushes live updates and notifications from the blockchain and business logic.
+- **Admin Panel:** Provides tools for manual overrides, KYC reviews, analytics, and audit log access.
+
+---
+
+## Workflow Descriptions
+
+### User Onboarding & KYC
+
+1. **Registration & KYC Upload:** Users sign up and upload necessary documents via the mobile app.
+2. **API Gateway Processing:** Requests are authenticated and forwarded to Core Business Logic.
+3. **KYC Verification:** Core Business Logic interacts with a KYC provider; verification results are stored and reviewed if needed.
+4. **Account Activation:** Once KYC is approved, the user account is activated and linked to the abstracted wallet system.
+
+### Token Purchase Flow
+
+1. **Initiate Purchase:** Users select a property investment and initiate a token purchase from the dashboard.
+2. **Request Handling:** The request passes through the API Gateway to the Core Business Logic’s Token Purchase Manager.
+3. **Blockchain Interaction:**
+    - The Blockchain Orchestration Module selects either Polygon or Solana based on current conditions.
+    - The Smart Contract Wrapper calls the appropriate smart contract to mint the token.
+4. **Database Update & Notification:** The minted token is recorded in MongoDB and the user’s portfolio is updated with a notification.
+
+### Payout Flow
+
+1. **Payout Request:** Users request a payout via the mobile dashboard.
+2. **Validation & Processing:** The request is processed by the Core Business Logic’s Payout Manager.
+3. **External Payout:** The payout is executed via PayPal, and confirmation is received.
+4. **Logging & Notification:** The transaction is logged in Postgres and the user is notified of the completed payout.
+
+---
+
+## Implementation Considerations
+
+- **SDKs & Libraries:**
+  - *Polygon:* Use [web3.js](https://github.com/ethereum/web3.js) or [ethers.js](https://github.com/ethers-io/ethers.js).
+  - *Solana:* Utilize [@solana/web3.js](https://github.com/solana-labs/solana-web3.js).
+- **Development Tools:** Use Truffle/Hardhat for Polygon, and Anchor for Solana program development.
+- **Testing & Auditing:** Test smart contracts using Ganache (Polygon) and solana-test-validator (Solana); perform third-party audits.
+- **Deployment Pipelines:** Implement CI/CD for automated testing and deployment of smart contracts.
+- **Monitoring & Fallback:** Use network monitoring tools and automated fallback mechanisms to switch between Polygon and Solana as needed.
+
+---
+
+## Final Notes
+
+By abstracting the blockchain and wallet complexities behind a unified API, WeHive delivers a user-friendly, secure, and efficient investment platform. Users enjoy a web2-like experience—registering, investing, and receiving payouts—while the platform manages complex tokenization, blockchain operations, and fiat integrations in the background.
+
+This document serves as a comprehensive guide for developers, system architects, and stakeholders involved in the design, implementation, and maintenance of the WeHive platform.
+
+---
+
+*End of Document*
